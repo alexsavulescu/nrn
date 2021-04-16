@@ -195,7 +195,7 @@ static size_t part1() {
     int sz = nrn_prop_dparam_size_[i];
     bbcore_dparam_size[i] = sz;
     Memb_func* mf = memb_func + i;
-    if (mf && mf->dparam_semantics && sz && mf->dparam_semantics[sz-1] == -3) {
+    if (mf && mf->dparam_semantics && sz && (mf->dparam_semantics[sz-1] == -3 || mf->dparam_semantics[sz-1] == -4)) {
         // cvode_ieq in NEURON but not CoreNEURON
         bbcore_dparam_size[i] = sz - 1;
     }
