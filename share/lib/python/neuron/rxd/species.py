@@ -91,6 +91,10 @@ _ics_set_grid_currents.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.py_object,
 _delete_by_id = nrn_dll_sym('delete_by_id')
 _delete_by_id.argtypes = [ctypes.c_int]
 
+#function to change extracellular tortuosity
+_set_tortuosity = nrn_dll_sym('set_tortuosity')
+_set_tortuosity.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.py_object]
+
 
 # The difference here is that defined species only exists after rxd initialization
 _all_species = []
@@ -107,6 +111,23 @@ _species_count = 0
 
 _has_1d = False
 _has_3d = False
+
+def _update_tortuosity(region):
+    """Update tortuosity for all species on region"""
+
+    for s,r in _extracellular_diffusion_objects.items():
+        if (r == region and hasattr(s,'_id') and 
+            not hasattr(s,'_deleted') and not s._diffusion_characteristic):
+            _set_tortuosity(s._id, region._permeability_vector)
+
+def _update_volume_fraction(region):
+    """Update volume fractions for all species on region"""
+
+    for s,r in _extracellular_diffusion_objects.items():
+        if (r == region and hasattr(s,'_id') and 
+            not hasattr(s,'_deleted') and not s._diffusion_characteristic):
+            _set_volume_fraction(s._id, region._volume_faction_vector)
+
 
 def _1d_submatrix_n():
     if not _has_1d:
@@ -483,8 +504,6 @@ class SpeciesOnRegion(_SpeciesMathable):
             return sp._intracellular_instances[r]
         else:
             raise RxDException("There are no 3D species defined on {}".format(r))
-        
-
     @property
     def _id(self):
         return self._species()._id
@@ -821,7 +840,7 @@ class _IntracellularSpecies(_SpeciesMathable):
                 return(len(sig.parameters))
             else:
                 sig = inspect.getargspec(fun)
-                if sig.varargs != None or sig.keywords != None:
+                if sig.varargs is not None or sig.keywords is not None:
                     raise RxDException("Intracellular diffusion coefficient function may not include *args or *kwargs")
                 return len(sig.args)
         dc = None
@@ -915,7 +934,7 @@ class _IntracellularSpecies(_SpeciesMathable):
 
 
 class _ExtracellularSpecies(_SpeciesMathable):
-    def __init__(self, region, d=0, name=None, charge=0, initial=0, atolscale=1.0, boundary_conditions=None):
+    def __init__(self, region, d=0, name=None, charge=0, initial=0, atolscale=1.0, boundary_conditions=None, species=None):
         """
             region = Extracellular object (TODO? or list of objects)
             name = string of the name of the NEURON species (e.g. ca)
@@ -952,18 +971,29 @@ class _ExtracellularSpecies(_SpeciesMathable):
         self.states = self._states.as_numpy().reshape(self._nx, self._ny, self._nz)
         self._initial = initial
         self._boundary_conditions = boundary_conditions
-
-        if(numpy.isscalar(region.alpha)):
-            self.alpha = self._alpha = region.alpha
+        self._diffusion_characteristic = ((isinstance(region.alpha, Species) and 
+                                           region._alpha == species) or 
+                                          (hasattr(region, "_permeability") and 
+                                           isinstance(region._permeability, Species) and 
+                                           region._permeability == species))
+        if self._diffusion_characteristic:
+            self.alpha = 1.0
+            self._alpha = 1.0
+        elif numpy.isscalar(region._volume_fraction_vector):
+            self.alpha = self._alpha = region._volume_fraction_vector
         else:
             self.alpha = region.alpha
-            self._alpha = region._alpha._ref_x[0]
-       
-        self.tortuosity = region.tortuosity 
-        if(numpy.isscalar(region._ecs_tortuosity)):
-            self._tortuosity = region._ecs_tortuosity
-        else:
-            self._tortuosity = region._ecs_tortuosity._ref_x[0]
+            self._alpha = region._volume_fraction_vector._ref_x[0]
+
+        if self._diffusion_characteristic:
+            self.tortuosity = 1.0
+            self._permability = 1.0
+        else: 
+            self.tortuosity = region.tortuosity
+            if(numpy.isscalar(region._permeability_vector)):
+                self._permability = region._permeability_vector
+            else:
+                self._permability = region._permeability_vector._ref_x[0]
 
         if boundary_conditions is None:
             bc_type = 0
@@ -974,9 +1004,9 @@ class _ExtracellularSpecies(_SpeciesMathable):
         
         # TODO: if allowing different diffusion rates in different directions, verify that they go to the right ones
         if not hasattr(self._d,'__len__'):
-            self._grid_id = ECS_insert(0, self._states._ref_x[0], self._nx, self._ny, self._nz, self._d, self._d, self._d, self._dx[0], self._dx[1], self._dx[2], self._alpha, self._tortuosity, bc_type, bc_value, atolscale)
+            self._grid_id = ECS_insert(0, self._states._ref_x[0], self._nx, self._ny, self._nz, self._d, self._d, self._d, self._dx[0], self._dx[1], self._dx[2], self._alpha, self._permability, bc_type, bc_value, atolscale)
         elif len(self._d) == 3:
-             self._grid_id = ECS_insert(0, self._states._ref_x[0], self._nx, self._ny, self._nz, self._d[0], self._d[1], self._d[2], self._dx[0], self._dx[1], self._dx[2], self._alpha, self._tortuosity, bc_type, bc_value, atolscale)
+             self._grid_id = ECS_insert(0, self._states._ref_x[0], self._nx, self._ny, self._nz, self._d[0], self._d[1], self._d[2], self._dx[0], self._dx[1], self._dx[2], self._alpha, self._permability, bc_type, bc_value, atolscale)
         else:
             raise RxDException("Diffusion coefficient %s for %s is invalid. A single value D or a tuple of 3 values (Dx,Dy,Dz) is required for the diffusion coefficient." % (repr(d), name))  
 
@@ -1118,7 +1148,7 @@ class _ExtracellularSpecies(_SpeciesMathable):
     def _update_pointers(self):
         # TODO: call this anytime the _grid_id changes and anytime the structure_change_count change
         self._isalive()
-        if self._species is None or self._charge == 0:
+        if self._species is None:
             return
         self._seg_indices = self._locate_segments()
         from .geometry import _surface_areas1d
@@ -1133,7 +1163,7 @@ class _ExtracellularSpecies(_SpeciesMathable):
                     grid_indices.append(i)
                     neuron_pointers.append(getattr(seg, stateo))
         _set_grid_concentrations(grid_list, self._grid_id, grid_indices, neuron_pointers)
-        if isinstance(_defined_species[self._species][self._region](), Parameter):
+        if self._charge == 0 or isinstance(_defined_species[self._species][self._region](), Parameter):
             _set_grid_currents(grid_list, self._grid_id, [], [], [])
         else:
             tenthousand_over_charge_faraday = 10000. / (self._charge * h.FARADAY)
@@ -1148,6 +1178,21 @@ class _ExtracellularSpecies(_SpeciesMathable):
                         scale_factors.append(float(scale_factor * surface_area))
             #TODO: MultiCompartment reactions ?
             _set_grid_currents(grid_list, self._grid_id, grid_indices, neuron_pointers, scale_factors)
+
+    def _import_concentration(self):
+        """ set node values to those of the corresponding NEURON segments """
+
+        self._isalive()
+        if self._species is None:
+            return
+        grid_list = 0
+        grid_indices = []
+        neuron_pointers = []
+        stateo = self._species + 'o'
+        for sec, indices in self._seg_indices.items():
+            for seg, i in zip(sec, indices):
+                if i is not None:
+                    self._states[i] = getattr(seg, stateo)
     
     def _semi_compile(self, reg, instruction):
 
@@ -1253,6 +1298,7 @@ class Species(_SpeciesMathable):
         self.initial = initial
         self._atolscale = atolscale
         self._ecs_boundary_conditions = ecs_boundary_conditions
+        self._species_on_region = weakref.WeakKeyDictionary()
         if represents and not _ontology_id.match(represents):
             raise RxDException("The represents=%s is not valid CURIE" % represents)
         else:
@@ -1372,7 +1418,6 @@ class Species(_SpeciesMathable):
         # NOTE: if no 3D nodes, then _3doffset is not meaningful
         self._3doffset = 0
         self._3doffset_by_region = {}
-        self._nodes = []
         selfref = weakref.ref(self)
         self_has_3d = False
         self._intracellular_nodes = {}
@@ -1392,7 +1437,7 @@ class Species(_SpeciesMathable):
 
     def _do_init4(self):
         extracellular_nodes = []
-        self._extracellular_instances = {r : _ExtracellularSpecies(r, d=self._d, name=self.name, charge=self.charge, initial=self.initial, atolscale=self._atolscale, boundary_conditions=self._ecs_boundary_conditions) for r in self._extracellular_regions}
+        self._extracellular_instances = {r : _ExtracellularSpecies(r, d=self._d, name=self.name, charge=self.charge, initial=self.initial, atolscale=self._atolscale, boundary_conditions=self._ecs_boundary_conditions, species=self) for r in self._extracellular_regions}
         sp_ref = weakref.ref(self)
         index = 0
         for r in self._extracellular_regions:
@@ -1529,12 +1574,16 @@ class Species(_SpeciesMathable):
         The resulting object is a SpeciesOnRegion.
         This is useful for defining reaction schemes for MultiCompartmentReaction."""
         if isinstance(r, region.Region) and r in self._regions:
-            return SpeciesOnRegion(self, r)
+            if r not in self._species_on_region:
+                 self._species_on_region[r] = SpeciesOnRegion(self, r)
+            return self._species_on_region[r]
         elif isinstance(r, region.Extracellular):
             if not hasattr(self,'_extracellular_instances'):
                 initializer._do_init()
             if r in self._extracellular_instances:
-                return SpeciesOnExtracellular(self, self._extracellular_instances[r])
+                if r not in self._species_on_region:
+                    self._species_on_region[r] = SpeciesOnExtracellular(self, self._extracellular_instances[r])
+                return self._species_on_region[r]
         raise RxDException('no such region')
 
     def _update_node_data(self):
@@ -1580,17 +1629,8 @@ class Species(_SpeciesMathable):
         idx = self._indices1d()
         species_atolscale(self._id, self._atolscale, len(idx), (ctypes.c_int * len(idx))(*idx))
         # 3D stuff
-        self._concentration_ptrs = []
-        self._seg_order = []
-        if self._nodes and self.name is not None:
-            for r in self._regions:
-                nrn_region = r._nrn_region
-                if nrn_region is not None:
-                    ion = '_ref_' + self.name + nrn_region
-                    current_region_segs = list(r._segsidx)
-                    self._seg_order += current_region_segs
-                    for seg in r._segs3d(current_region_segs):
-                        self._concentration_ptrs.append(getattr(seg, ion))    
+        for ics in self._intracellular_instances.values():
+            ics._register_cptrs()
 
     @property
     def charge(self):
@@ -1717,39 +1757,6 @@ class Species(_SpeciesMathable):
         # 1D part
         for s in self._secs:
             s._setup_currents(indices, scales, ptrs, cur_map)
-        # 3D part
-        if self._nodes:
-            # TODO: this is very similar to the 1d code; merge
-            if self.name is not None and self.charge != 0:
-                ion_curr = '_ref_i%s' % self.name
-                volumes, surface_area, diffs = node._get_data()
-                # NOTE: this implicitly assumes that o and i border the membrane
-                local_indices = self._indices3d()
-                offset = self._offset
-                charge = self.charge
-                namei = self._name + 'i'
-                nameo = self._name + 'o'
-                tenthousand_over_charge_faraday = 10000. / (charge * h.FARADAY)
-                for i, nodeobj in enumerate(self._nodes):
-                    if surface_area[i]:
-                        r = nodeobj.region
-                        nrn_region = r.nrn_region
-                        if nrn_region == 'i':
-                            sign = -1
-                            seg = nodeobj.segment
-                            cur_map[namei][seg] = len(indices)
-                        elif nrn_region == 'o':
-                            sign = 1
-                            seg = nodeobj.segment
-                            cur_map[nameo][seg] = len(indices)
-                        else:
-                            continue
-                        indices.append(local_indices[i])
-                        if volumes[i + offset] == 0:
-                            print(('0 volume at position %d; surface area there: %g' % (i + offset, surface_area[i + offset])))
-                        scales.append(sign * tenthousand_over_charge_faraday * surface_area[i + offset] / volumes[i + offset])
-                        ptrs.append(getattr(seg, ion_curr))
-
     
     def _has_region_section(self, region, sec):
         return any((s._region == region and s._sec == sec) for s in self._secs)
@@ -1797,7 +1804,7 @@ class Species(_SpeciesMathable):
                 for node in self.nodes:
                     node.concentration = self.initial
             if not skip_transfer:
-                self._transfer_to_legacy() 
+                self._transfer_to_legacy()
         else:
             self._import_concentration()
     
@@ -1807,8 +1814,12 @@ class Species(_SpeciesMathable):
         
         # 1D part
         for sec in self._secs: sec._transfer_to_legacy()
-        
-        # 3D part
+
+        # now the 3D stuff
+        for ics in self._intracellular_instances.values():
+            ics._transfer_to_legacy()
+
+        """
         nodes = self._nodes
         if nodes:
             non_none_regions = [r for r in self._regions if r._nrn_region is not None]
@@ -1824,7 +1835,7 @@ class Species(_SpeciesMathable):
                         # TODO: if everything is 3D, then this should always have something, but for sections that aren't in 3D, won't have anything here
                         # TODO: vectorize this, don't recompute denominator unless a structure change event happened
                         ptr[0] = sum(nodes[node].concentration * nodes[node].volume for node in all_nodes_in_seg) / sum(nodes[node].volume for node in all_nodes_in_seg)
-    
+        """    
     def _import_concentration(self, init=True):
         """Read concentrations from the standard NEURON grid"""
         if self._name is None: return
@@ -1833,20 +1844,12 @@ class Species(_SpeciesMathable):
         for sec in self._secs: sec._import_concentration(init)
 
         # now the 3D stuff
-        nodes = self._nodes
-        if nodes:
-            # TODO: replace this with a pointer vec for speed
-            #       not a huge priority since import happens rarely if at all
-            i = 0
-            seg_order = self._seg_order
-            conc_ptr = self._concentration_ptrs
-            for r in self._regions:
-                if r._nrn_region is not None:
-                    segidx, ptr = seg_order[i], conc_ptr[i]
-                    i += 1
-                    value = ptr[0]
-                    for node in r._nodes_by_seg[segidx]:
-                        nodes[node].concentration = value
+        for ics in self._intracellular_instances.values():
+            ics._import_concentration()
+
+        # now the ECS
+        for ecs in self._extracellular_instances.values():
+            ecs._import_concentration()
     
     @property
     def nodes(self):
@@ -1868,7 +1871,7 @@ class Species(_SpeciesMathable):
                     self._all_intracellular_nodes += self._intracellular_nodes[r]
         # The first part here is for the 1D -- which doesn't keep live node objects -- the second part is for 3D
         self._all_intracellular_nodes = [nd for nd in self._all_intracellular_nodes[:] if nd.sec]
-        return nodelist.NodeList(list(itertools.chain.from_iterable([s.nodes for s in self._secs])) + self._nodes + self._all_intracellular_nodes + self._extracellular_nodes) 
+        return nodelist.NodeList(list(itertools.chain.from_iterable([s.nodes for s in self._secs])) + self._all_intracellular_nodes + self._extracellular_nodes) 
 
 
     @property
@@ -1911,7 +1914,7 @@ def xyz_by_index(indices):
     else:
         index = [indices]
     #TODO: make sure to include Node3D
-    return [[nd.x3d, nd.y3d, nd.z3d] for sp in _get_all_species() for s in sp()._secs for nd in s.nodes + sp()._nodes if sp() if nd._index in index]
+    return [[nd.x3d, nd.y3d, nd.z3d] for sp in _get_all_species() for s in sp()._secs for nd in s.nodes if sp() if nd._index in index]
 
 
 class Parameter(Species):
@@ -1991,12 +1994,16 @@ class Parameter(Species):
         The resulting object is a ParameterOnRegion or ParameterOnExtracellular.
         This is useful for defining reaction schemes for MultiCompartmentReaction."""
         if isinstance(r, region.Region) and r in self._regions:
-            return ParameterOnRegion(self, r)
+            if r not in self._species_on_region:
+                self._species_on_region[r] = ParameterOnRegion(self, r)
+            return self._species_on_region[r]
         elif isinstance(r, region.Extracellular):
             if not hasattr(self,'_extracellular_instances'):
                 initializer._do_init()
             if r in self._extracellular_instances:
-                return ParameterOnExtracellular(self, self._extracellular_instances[r])
+                if r not in self._species_on_region:
+                    self._species_on_region[r] = ParameterOnExtracellular(self, self._extracellular_instances[r])
+                return self._species_on_region[r]
         raise RxDException('no such region')
 
 class ParameterOnRegion(SpeciesOnRegion):

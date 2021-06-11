@@ -106,7 +106,7 @@ setup_currents.argtypes = [
 ics_register_reaction = nrn_dll_sym('ics_register_reaction')
 ics_register_reaction.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int,
                                   _int_ptr,
-                                  numpy.ctypeslib.ndpointer(dtype=numpy.int64),
+                                  numpy.ctypeslib.ndpointer(dtype=numpy.uint64),
                                   ctypes.c_int,
                                   numpy.ctypeslib.ndpointer(dtype=numpy.float),
 ]
@@ -313,26 +313,25 @@ def _after_advance():
     
 def re_init():
     """reinitializes all rxd concentrations to match HOC values, updates matrices"""
+
     global _external_solver_initialized
     h.define_shape()
-    
-    if not species._has_3d:
-        # TODO: if we do have 3D, make sure that we do the necessary parts of this
-    
-        # update current pointers
-        section1d._purge_cptrs()
-        for sr in _species_get_all_species():
-            s = sr()
-            if s is not None:
-                s._register_cptrs()
-        
-        # update matrix equations
-        _setup_matrices()
+
+    section1d._purge_cptrs()
+    for sr in _species_get_all_species():
+        s = sr()
+        if s is not None:
+            s._register_cptrs()
+
     for sr in _species_get_all_species():
         s = sr()
         if s is not None: s.re_init()
-    # TODO: is this safe?        
-    _cvode_object.re_init()
+
+    # update matrix equations
+    _setup_matrices()
+
+    if _cvode_object.active(): 
+        _cvode_object.re_init()
 
     _external_solver_initialized = False
     
@@ -667,7 +666,7 @@ def _setup_matrices():
             for sr in _species_get_all_species():
                 s = sr()
                 if s is not None:
-                    if s._intracellular_instances and s._secs:
+                    if s._intracellular_instances:
                         # have both 1D and 3D, so find the neighbors
                         # for each of the 3D sections, find the parent sections
                         for r in s._regions:
@@ -704,7 +703,6 @@ def _setup_matrices():
                                             hybrid_vols1d[index1d] = vols1d
     
     
-                                            
             if len(dxs) > 1:
                 raise RxDException('currently require a unique value for dx')
             dx = dxs.pop()
@@ -1387,7 +1385,11 @@ def _compile_reactions():
                 if ele == []:
                     mults[i] = numpy.ones(len(reg._xs))
             mults = list(itertools.chain.from_iterable(mults))
-            ics_register_reaction(0, len(all_ics_gids), len(ics_param_gids), _list_to_cint_array(all_ics_gids + ics_param_gids), numpy.asarray(mc3d_indices_start), mc3d_region_size, numpy.asarray(mults), _c_compile(fxn_string))               
+            ics_register_reaction(0, len(all_ics_gids), len(ics_param_gids),
+                                  _list_to_cint_array(all_ics_gids + ics_param_gids),
+                                  numpy.asarray(mc3d_indices_start,dtype=numpy.uint64),
+                                  mc3d_region_size, numpy.asarray(mults),
+                                  _c_compile(fxn_string))               
     #Setup extracellular reactions
     if len(ecs_regions_inv) > 0:
         for reg in ecs_regions_inv:
@@ -1603,7 +1605,10 @@ def _windows_remove_dlls():
             handle = dll._handle
             del dll
             kernel32.FreeLibrary(handle)
-        os.remove(filepath)
+        try:
+            os.remove(filepath)
+        except:
+            pass
     _windows_dll_files = []
     _windows_dll = []
         

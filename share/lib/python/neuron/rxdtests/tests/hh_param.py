@@ -2,7 +2,6 @@ from neuron import h, crxd as rxd
 from neuron.crxd import v
 from neuron.crxd.rxdmath import vtrap, exp, log
 from math import pi
-from matplotlib import pyplot
 h.load_file('stdrun.hoc')
 
 # parameters
@@ -72,9 +71,12 @@ kecs = rxd.Parameter([ecs], name='k', value=2.5, charge=1, represents='CHEBI:291
 
 na = rxd.Species([cyt, mem], name='na', d=1, charge=1, initial=10.0, represents='CHEBI:29101')
 
-naecs = rxd.Parameter([ecs], name='na', value=140, charge=1, represents='CHEBI:29101')
+naecs = rxd.Parameter([ecs], name='na_ecs', value=140, charge=1, represents='CHEBI:29101')
 
 x = rxd.Species([cyt, mem, ecs], name='x', charge=1, initial=1e9)
+
+# a parameter without a charge to test initialization 
+dump = rxd.Parameter([cyt, ecs], name='dump')
 
 ki, ko, nai, nao, xi, xo = k[cyt], kecs[ecs], na[cyt], naecs[ecs], x[cyt], x[ecs]
 
@@ -147,33 +149,30 @@ h.finitialize(-70)
 #    print(h.t,somaA(0.5).v, somaA(0.5).ki, somaA(0.5).nai, somaA(0.5).xi)
 h.continuerun(100)
 
-# plot the results
-pyplot.ion()
-fig = pyplot.figure()
-pyplot.plot(tvec, vvecA, label="rxd")
-pyplot.plot(tvec, vvecB, label="mod")
-pyplot.legend()
-fig.set_dpi(200)
-
-fig = pyplot.figure()
-pyplot.plot(tvec, hvecA, '-b', label='h')
-pyplot.plot(tvec, mvecA, '-r', label='m')
-pyplot.plot(tvec, nvecA, '-g', label='n')
-pyplot.plot(tvec, hvecB, ':b')
-pyplot.plot(tvec, mvecB, ':r')
-pyplot.plot(tvec, nvecB, ':g')
-pyplot.legend()
-fig.set_dpi(200)
-
-fig = pyplot.figure()
-pyplot.plot(tvec, kvecA.as_numpy(), '-b', label='k')
-pyplot.plot(tvec, navecA.as_numpy(), '-r', label='na')
-pyplot.plot(tvec, kvecB, ':b')
-pyplot.plot(tvec, navecB, ':r')
-pyplot.legend()
-fig.set_dpi(200)
-
-
-
-
-
+if __name__ == "__main__":
+    from matplotlib import pyplot
+    # plot the results
+    pyplot.ion()
+    fig = pyplot.figure()
+    pyplot.plot(tvec, vvecA, label="rxd")
+    pyplot.plot(tvec, vvecB, label="mod")
+    pyplot.legend()
+    fig.set_dpi(200)
+    
+    fig = pyplot.figure()
+    pyplot.plot(tvec, hvecA, '-b', label='h')
+    pyplot.plot(tvec, mvecA, '-r', label='m')
+    pyplot.plot(tvec, nvecA, '-g', label='n')
+    pyplot.plot(tvec, hvecB, ':b')
+    pyplot.plot(tvec, mvecB, ':r')
+    pyplot.plot(tvec, nvecB, ':g')
+    pyplot.legend()
+    fig.set_dpi(200)
+    
+    fig = pyplot.figure()
+    pyplot.plot(tvec, kvecA.as_numpy(), '-b', label='k')
+    pyplot.plot(tvec, navecA.as_numpy(), '-r', label='na')
+    pyplot.plot(tvec, kvecB, ':b')
+    pyplot.plot(tvec, navecB, ':r')
+    pyplot.legend()
+    fig.set_dpi(200)
