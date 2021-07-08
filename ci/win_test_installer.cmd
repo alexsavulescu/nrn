@@ -44,7 +44,7 @@ mpiexec -n 2 python %cd%\src\parallel\test0.py -mpi --expected-hosts 2 || set "e
 :: disable if SKIP_ASSOCIATION_TEST is set
 IF "%SKIP_ASSOCIATION_TEST%"=="" (
   start %cd%\ci\association.hoc
-  ping -n 15 127.0.0.1
+  ping -n 20 127.0.0.1
   cat temp.txt
   findstr /i "^hello$" temp.txt || set "errorfound=y"
 ) else (
