@@ -1,6 +1,5 @@
 variables:
-- name: SKIP_ASSOCIATION_TEST
-  value: true 
+  SKIP_ASSOCIATION_TEST: true 
   
 steps:
 
@@ -21,6 +20,7 @@ steps:
   - task: BatchScript@1
     inputs:
       filename: ci/win_test_installer.cmd
+      SKIP_ASSOCIATION_TEST:$(SKIP_ASSOCIATION_TEST)
     displayName: "Test Installer"
     condition: succeeded()
 
