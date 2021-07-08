@@ -47,6 +47,8 @@ IF "%SKIP_ASSOCIATION_TEST%"=="" (
   ping -n 15 127.0.0.1
   cat temp.txt
   findstr /i "^hello$" temp.txt || set "errorfound=y"
+) else (
+  echo "SKIP_ASSOCIATION_TEST is set, skipping HOC association test"
 )
 
 :: setup for mknrndll/nrnivmodl
