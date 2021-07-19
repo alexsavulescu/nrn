@@ -88,13 +88,13 @@
               
             
             
-              <p class="caption"><span class="caption-text">Building:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Building:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../install/install.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../cmake_doc/index.html">CMake Build Options</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../install/developer.html">Developer Builds</a></li>
 </ul>
-<p class="caption"><span class="caption-text">User documentation:</span></p>
+<p class="caption" role="heading"><span class="caption-text">User documentation:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../python/index.html">NEURON Python documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../hoc/index.html">NEURON HOC documentation</a></li>
@@ -115,13 +115,13 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../coreneuron/index.html">How to use CoreNEURON</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Developer documentation:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Developer documentation:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../scm/index.html">NEURON SCM and Release</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../dev/index.html">NEURON Development topics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../doxygen.html">C/C++ API</a></li>
 </ul>
-<p class="caption"><span class="caption-text">Changelog</span></p>
+<p class="caption" role="heading"><span class="caption-text">Changelog</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../changelog.html">8.0.0</a></li>
 </ul>
@@ -14218,7 +14218,7 @@ We have expanded the capabilities the NEURON reaction diffusion module to suppor
 
 
 <div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain">
-<pre>(&#39;c91662.swc&#39;, &lt;http.client.HTTPMessage at 0x7fbb8051c8b0&gt;)</pre>
+<pre>(&#39;c91662.swc&#39;, &lt;http.client.HTTPMessage at 0x7f21a8ee63d0&gt;)</pre>
 </div>
 
 </div>
@@ -14265,8 +14265,8 @@ Mod files: &#34;./steady_k.mod&#34;
 Creating x86_64 directory for .o files.
 
 COBJS=&#39;&#39;
- -&gt; <span class="ansi-green-fg">NMODL</span> ../steady_k.mod
  -&gt; <span class="ansi-green-fg">Compiling</span> mod_func.cpp
+ -&gt; <span class="ansi-green-fg">NMODL</span> ../steady_k.mod
 Translating steady_k.mod into /home/runner/work/nrn/nrn/docs/rxd-tutorials/x86_64/steady_k.c
 Thread Safe
  -&gt; <span class="ansi-green-fg">Compiling</span> steady_k.c
@@ -16586,10 +16586,10 @@ A4hPXqg0oLLINh7IFlO1Jpc+jMyhsuh6ONzBvsEzMfl+LfxZWxjLSgzjHzSR999GgjZCbrghSjPN
 GIXxsBb6gB5sv+XNeKBq+3JMd/hmA1X+RzXpDAuadOsmFf+ZGX/OjlbDDYEoTVglQ75dIdiXwoA4
 SyoKPT/+BcIQGTRAe1nLmgs0Nqas1VF37qR1G+Bz844+jwt7+f5UQnOgJW3+urc3eigRjUghk92X
 mKRyorKTEFCJ7fy8ZiRD1pgAAAATAZ96akX/ABHV9ODtqnAr1umeGAAAAR5Bm35J4Q8mUwIR//3h
-ACwW/rIsS5wlcnT9e3eHYLvwIL5+8IfVuAJZd1BPBr18u+FoPttcWFHKwOdXZPCT3fbpsw6rsB1C
-xAJgFaoGzLsmVKXfseqDkFd1saOU2oraiouZ/0S06sJ5coiin9LOXHRLYa9zS81tBZ0GV3FZIhHD
-bhgnutpvVGZv4prxqla/+kgqq8VYje4v+/Z/JzmT40LEOr4xAFfuNBoIkKHHKkBZFwkOhCLL4xSX
-LbZqOYMhsscD2H20BoYQZxu34bSteY9EEyEESzwAq8+tivsm0vbCvhvQFbAyhofOiWdyMBRQsfJN
+ACwW/rIsS5wlcnT9e3eHYLvwIL5+8IfVuAJZd1BPBr18u+FoPttcWFHKwOdXZPCT3fbklEHmS5kg
+36CYcWqBszfhNSl37Hqg5BXdbGjlNut2oqLmf9EtOrCeXKRIp/Szlx0S2Gvc0vNbQWdBldxWSIRw
+24YJ7rab1Rmb+KdqfCMfVpSrKvFWI4IRrvxZGkCa+NCyoaKMQBX7jQaCJCiLrUvWRcJDoVh2R9yY
+t9s1HMHiRAsD2H20COO0ThmAVccNplmaCp9kSzwAq8+tivsm0vbCvhvQFbAyhofOiWdyMBRQsfJN
 8DVDf8Gy8rbJd1aJpqhaK8FTj/hIm++TP5LqkIQju70KhnR9sXPW0eCeICiBAAAAJEGfnEURPF8C
 KrwFcNWjAs3ZDdAMXiOCquNnsir7zPf+3wQYsAAAAA4Bn71qRf8AC1U7H1OApgAAAK5Bm6BJqEFo
 mUwU8I/94QBaPY+R1Qr35g6E/x9HIiqHTkhtfJHmFyP+KHIAkb1UQg9LxxW4Q4NORTPq6IFfd2QS
@@ -17000,7 +17000,7 @@ We can also record from the extracellular concentration in the same way other NE
 
 
 <div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain">
-<pre>[&lt;matplotlib.lines.Line2D at 0x7fbb46ae7a60&gt;]</pre>
+<pre>[&lt;matplotlib.lines.Line2D at 0x7f21704b0670&gt;]</pre>
 </div>
 
 </div>
